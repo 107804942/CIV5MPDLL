@@ -919,6 +919,7 @@ void CvCity::init(int iID, PlayerTypes eOwner, int iX, int iY, bool bBumpUnits, 
 				{
 					kPlayer.changeExtraUnitCost(iUnit->getUnitInfo().GetExtraMaintenanceCost());
 				}
+				if(kPlayer.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY) > 0) ChangeNoOccupiedUnhappinessCount(1);
 			}
 		}
 	}
@@ -3440,7 +3441,6 @@ bool CvCity::canConstruct(BuildingTypes eBuilding, bool bContinue, bool bTestVis
 		return false;
 	}
 
-#if defined(MOD_API_EXTENSIONS)
 	if (!bWillPurchase && pkBuildingInfo->IsPurchaseOnly())
 	{
 		return false;
@@ -3450,7 +3450,6 @@ bool CvCity::canConstruct(BuildingTypes eBuilding, bool bContinue, bool bTestVis
 	{
 		return false;
 	}
-#endif
 
 	if(m_pCityBuildings->GetNumBuilding(eBuilding) >= GC.getCITY_MAX_NUM_BUILDINGS())
 	{
@@ -6255,6 +6254,10 @@ int CvCity::GetFaithPurchaseCost(BuildingTypes eBuilding)
 
 	// Cost goes up in later eras
 	iCost = pkBuildingInfo->GetFaithCost();
+	int iTraitCost = GET_PLAYER(getOwner()).GetPlayerTraits()->GetBuildingClassFaithCost((BuildingClassTypes)pkBuildingInfo->GetBuildingClassType());
+	if(iTraitCost > 0 && iCost > 0) iCost = std::min(iTraitCost, iCost);
+	else if(iTraitCost > 0) iCost = iTraitCost;
+
 	EraTypes eEra = GET_TEAM(GET_PLAYER(getOwner()).getTeam()).GetCurrentEra();
 	int iMultiplier = GC.getEraInfo(eEra)->getFaithCostMultiplier();
 	iCost = iCost * iMultiplier / 100;
@@ -13203,7 +13206,13 @@ int CvCity::getBaseYieldRateModifier(YieldTypes eIndex, int iExtra, CvString* to
 		if (MOD_TRAIT_RELIGION_FOLLOWER_EFFECTS)
 		{
 			// From traits
-			iTempMod += iFollowers * owner.GetPerMajorReligionFollowerYieldModifier(eIndex);
+			int iReligionFollowerYieldModifierTimes100 = iFollowers * owner.GetPerMajorReligionFollowerYieldModifierTimes100(eIndex) / 100;
+			int iTraitModifierTimes100 = iFollowers * owner.GetPlayerTraits()->GetPerMajorReligionFollowerYieldModifierTimes100(eIndex) / 100;
+			int iMax = owner.GetPlayerTraits()->GetPerMajorReligionFollowerYieldModifierMax(eIndex);
+			if (iMax > 0) iTraitModifierTimes100 = std::min(iMax, iTraitModifierTimes100);
+
+			iReligionFollowerYieldModifierTimes100 += iTraitModifierTimes100;
+			iTempMod += iReligionFollowerYieldModifierTimes100;
 		}
 #endif
 

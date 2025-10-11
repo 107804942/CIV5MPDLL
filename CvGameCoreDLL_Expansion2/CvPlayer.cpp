@@ -198,7 +198,6 @@ CvPlayer::CvPlayer() :
 	, m_iEspionageModifier(0)
 	, m_iEspionageSpeedModifier(0)
 	, m_iSpyStartingRank(0)
-	, m_iSpyLevelUpWhenRiggingCount(0)
 #if defined(MOD_RELIGION_CONVERSION_MODIFIERS)
 	, m_iConversionModifier(0)
 #endif
@@ -742,12 +741,6 @@ void CvPlayer::init(PlayerTypes eID)
 		changeGoldPerUnitTimes100(GC.getINITIAL_GOLD_PER_UNIT_TIMES_100());
 
 		ChangeMaxNumBuilders(GC.getDEFAULT_MAX_NUM_BUILDERS());
-#ifdef MOD_TRAIT_RELIGION_FOLLOWER_EFFECTS
-		for (int i = 0; i < NUM_YIELD_TYPES; i++)
-		{
-			ChangePerMajorReligionFollowerYieldModifier(static_cast<YieldTypes>(i), GetPlayerTraits()->GetPerMajorReligionFollowerYieldModifier(static_cast<YieldTypes>(i)));
-		}
-#endif
 		changeLevelExperienceModifier(GetPlayerTraits()->GetLevelExperienceModifier());
 		changeMaxGlobalBuildingProductionModifier(GetPlayerTraits()->GetMaxGlobalBuildingProductionModifier());
 		changeMaxTeamBuildingProductionModifier(GetPlayerTraits()->GetMaxTeamBuildingProductionModifier());
@@ -985,7 +978,6 @@ void CvPlayer::uninit()
 	m_iEspionageModifier = 0;
 	m_iEspionageSpeedModifier = 0;
 	m_iSpyStartingRank = 0;
-	m_iSpyLevelUpWhenRiggingCount = 0;
 
 	m_iCSAllies = 0;
 	m_iCSFriends = 0;
@@ -1478,7 +1470,7 @@ void CvPlayer::reset(PlayerTypes eID, bool bConstructorCall)
 #ifdef MOD_TRAIT_RELIGION_FOLLOWER_EFFECTS
 	for (int i = 0; i < NUM_YIELD_TYPES; i++)
 	{
-		m_piPerMajorReligionFollowerYieldModifier[i] = 0;
+		m_piPerMajorReligionFollowerYieldModifierTimes100[i] = 0;
 	}
 #endif
 
@@ -14470,17 +14462,6 @@ void CvPlayer::ChangeStartingSpyRank(int iChange)
 	m_iSpyStartingRank = (m_iSpyStartingRank + iChange);
 }
 
-//Can spy level up when after rigging
-int CvPlayer::GetSpyLevelUpWhenRiggingCount() const
-{
-	return m_iSpyLevelUpWhenRiggingCount;
-}
-
-bool CvPlayer::IsSpyLevelUpWhenRigging() const
-{
-	return (GetSpyLevelUpWhenRiggingCount() > 0);
-}
-
 #if defined(MOD_RELIGION_CONVERSION_MODIFIERS)
 //	--------------------------------------------------------------------------------
 /// Get the global modifier on the conversion progress rate
@@ -21840,6 +21821,8 @@ void CvPlayer::SetGetsScienceFromPlayer(PlayerTypes ePlayer, bool bNewValue)
 /// Player spending too much cash?
 void CvPlayer::DoDeficit()
 {
+	if(GetPlayerTraits()->IsNoDoDeficit()) return;
+
 	int iNumMilitaryUnits = 0;
 
 	CvUnit* pLoopUnit;
@@ -22698,7 +22681,7 @@ inline static bool MeetCityResourceRequirement(const PolicyResourceInfo& info,  
 {
 	bool okPolicy = (player->HasPolicy(info.ePolicy) && !player->GetPlayerPolicies()->IsPolicyBlocked(info.ePolicy));
 	bool okCoastal = (!info.bMustCoastal || city->isCoastal());
-	bool okCityScale = (info.eCityScale == NO_CITY_SCALE || city->GetScale() == info.eCityScale);
+	bool okCityScale = (info.eCityScale == NO_CITY_SCALE || (info.bLargerScaleValid ? city->GetScale() >= info.eCityScale : city->GetScale() == info.eCityScale));
 	return okPolicy && okCoastal && okCityScale;
 }
 
@@ -26861,7 +26844,8 @@ void CvPlayer::processPolicies(PolicyTypes ePolicy, int iChange)
 	changePolicyModifiers(POLICYMOD_SHARED_IDEOLOGY_TRADE_CHANGE, pPolicy->GetSharedIdeologyTradeGoldChange() * iChange);
 	changePolicyModifiers(POLICYMOD_RIGGING_ELECTION_MODIFIER, pPolicy->GetRiggingElectionModifier() * iChange);
 	changePolicyModifiers(POLICYMOD_RIGGING_ELECTION_INFLUENCE_MODIFIER, pPolicy->GetRiggingElectionInfluenceModifier() * iChange);
-	changePolicyModifiers(POLICYMOD_SPY_LEVEL_UP_WHEN_RIGGING, pPolicy->IsSpyLevelUpWhenRigging() * iChange);
+	changePolicyModifiers(POLICYMOD_SPY_LEVEL_UP_WHEN_RIGGING, pPolicy->IsSpyLevelUpWhenRigging() ? iChange : 0);
+	changePolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY, pPolicy->IsNoOccupiedUnhappinessGarrisonedCity() ? iChange : 0);
 	changePolicyModifiers(POLICYMOD_MILITARY_UNIT_GIFT_INFLUENCE, pPolicy->GetMilitaryUnitGiftExtraInfluence() * iChange);
 	changePolicyModifiers(POLICYMOD_PROTECTED_MINOR_INFLUENCE, pPolicy->GetProtectedMinorPerTurnInfluence() * iChange);
 	changePolicyModifiers(POLICYMOD_AFRAID_INFLUENCE, pPolicy->GetAfraidMinorPerTurnInfluence() * iChange);
@@ -27350,6 +27334,7 @@ void CvPlayer::processPolicies(PolicyTypes ePolicy, int iChange)
 
 	bool bGarrisonFreeMaintenance = pPolicy->IsGarrisonFreeMaintenance();
 	bool bCulturePerGarrisonedUnit = pPolicy->GetCulturePerGarrisonedUnit();
+	bool bNoOccupiedUnhappinessGarrisonedCity = pPolicy->IsNoOccupiedUnhappinessGarrisonedCity();
 
 	// Loop through Cities
 
@@ -27420,6 +27405,10 @@ void CvPlayer::processPolicies(PolicyTypes ePolicy, int iChange)
 					if(bGarrisonFreeMaintenance)
 					{
 						changeExtraUnitCost(-iUnit->getUnitInfo().GetExtraMaintenanceCost() * iChange);
+					}
+					if(bNoOccupiedUnhappinessGarrisonedCity)
+					{
+						pLoopCity->ChangeNoOccupiedUnhappinessCount(iChange);
 					}
 				}
 			}
@@ -28115,7 +28104,6 @@ void CvPlayer::Read(FDataStream& kStream)
 	kStream >> m_iEspionageModifier;
 	kStream >> m_iEspionageSpeedModifier;
 	kStream >> m_iSpyStartingRank;
-	kStream >> m_iSpyLevelUpWhenRiggingCount;
 #if defined(MOD_RELIGION_CONVERSION_MODIFIERS)
 	MOD_SERIALIZE_READ(23, kStream, m_iConversionModifier, 0);
 #endif
@@ -28777,7 +28765,7 @@ void CvPlayer::Read(FDataStream& kStream)
 	}
 
 	kStream >> m_strEmbarkedGraphicOverride;
-	kStream >> m_piPerMajorReligionFollowerYieldModifier;
+	kStream >> m_piPerMajorReligionFollowerYieldModifierTimes100;
 
 	#ifdef MOD_RESOURCE_EXTRA_BUFF
 	kStream >> m_iResourceUnhappinessModifier;
@@ -28947,7 +28935,6 @@ void CvPlayer::Write(FDataStream& kStream) const
 	kStream << m_iEspionageModifier;
 	kStream << m_iEspionageSpeedModifier;
 	kStream << m_iSpyStartingRank;
-	kStream << m_iSpyLevelUpWhenRiggingCount;
 #if defined(MOD_RELIGION_CONVERSION_MODIFIERS)
 	MOD_SERIALIZE_WRITE(kStream, m_iConversionModifier);
 #endif
@@ -29481,7 +29468,7 @@ void CvPlayer::Write(FDataStream& kStream) const
 	}
 
 	kStream << m_strEmbarkedGraphicOverride;
-	kStream << m_piPerMajorReligionFollowerYieldModifier;
+	kStream << m_piPerMajorReligionFollowerYieldModifierTimes100;
 
 #ifdef MOD_RESOURCE_EXTRA_BUFF
 	kStream << m_iResourceUnhappinessModifier;
@@ -32737,18 +32724,18 @@ int CvPlayer::CountAllWorkedTerrain(TerrainTypes iTerrainType)
 #endif // end of MOD_API_EXTENSIONS
 
 #ifdef MOD_TRAIT_RELIGION_FOLLOWER_EFFECTS
-void CvPlayer::SetPerMajorReligionFollowerYieldModifier(const YieldTypes eYieldType, const int iValue)
+void CvPlayer::SetPerMajorReligionFollowerYieldModifierTimes100(const YieldTypes eYieldType, const int iValue)
 {
-	m_piPerMajorReligionFollowerYieldModifier[eYieldType] = iValue;
+	m_piPerMajorReligionFollowerYieldModifierTimes100[eYieldType] = iValue;
 }
 
-void CvPlayer::ChangePerMajorReligionFollowerYieldModifier(const YieldTypes eYieldType, const int iChange) {
-	m_piPerMajorReligionFollowerYieldModifier[eYieldType] += iChange;
+void CvPlayer::ChangePerMajorReligionFollowerYieldModifierTimes100(const YieldTypes eYieldType, const int iChange) {
+	m_piPerMajorReligionFollowerYieldModifierTimes100[eYieldType] += iChange;
 }
 
-int CvPlayer::GetPerMajorReligionFollowerYieldModifier(const YieldTypes eYieldType) const 
+int CvPlayer::GetPerMajorReligionFollowerYieldModifierTimes100(const YieldTypes eYieldType) const 
 {
-	return m_piPerMajorReligionFollowerYieldModifier[eYieldType];
+	return m_piPerMajorReligionFollowerYieldModifierTimes100[eYieldType];
 }
 
 #endif

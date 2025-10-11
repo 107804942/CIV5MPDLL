@@ -2429,6 +2429,12 @@ void CvUnit::kill(bool bDelay, PlayerTypes ePlayer /*= NO_PLAYER*/)
 	}
 #endif
 
+	int iTradeRouteIndex = -1;
+	if (isTrade())
+	{
+		iTradeRouteIndex = GC.getGame().GetGameTrade()->GetIndexFromUnitID(GetID(), getOwner());
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// WARNING: This next statement will delete 'this'
 	// ANYTHING BELOW HERE MUST NOT REFERENCE THE UNIT!
@@ -2436,6 +2442,8 @@ void CvUnit::kill(bool bDelay, PlayerTypes ePlayer /*= NO_PLAYER*/)
 
 	// Update Unit Production Maintenance
 	GET_PLAYER(kCaptureDef.eOldPlayer).UpdateUnitProductionMaintenanceMod();
+
+	if (iTradeRouteIndex >= 0) GC.getGame().GetGameTrade()->EmptyTradeRoute(iTradeRouteIndex);
 
 	// Create the captured unit that will replace this unit (if the capture definition is valid)
 	CvUnit::createCaptureUnit(kCaptureDef);
@@ -5778,14 +5786,9 @@ int CvUnit::GetCaptureChance(CvUnit *pEnemy)
 	if ((m_iCaptureDefeatedEnemyCount > 0 || m_iCaptureDefeatedEnemyChance > 0) && AreUnitsOfSameType(*pEnemy))
 	{
 #if defined(MOD_GLOBAL_CAPTURE_UNIT_CANNOT_MAX_OUT)
-		CvUnitClassInfo *pkEnemyClassInfo = GC.getUnitClassInfo(pEnemy->getUnitClassType());
-		if (MOD_GLOBAL_CAPTURE_UNIT_CANNOT_MAX_OUT && pkEnemyClassInfo)
+		if(MOD_GLOBAL_CAPTURE_UNIT_CANNOT_MAX_OUT && GET_PLAYER(getOwner()).isUnitClassMaxedOut(pEnemy->getUnitClassType()))
 		{
-			int iMaxPlayerInstances = pkEnemyClassInfo->getMaxPlayerInstances();
-			if(iMaxPlayerInstances > 0 && GET_PLAYER(getOwner()).getUnitClassCount(pEnemy->getUnitClassType()) >= iMaxPlayerInstances)
-			{
-				return 0;
-			}
+			return 0;
 		}
 #endif
 		// Look at ratio of intrinsic combat strengths
@@ -12468,6 +12471,13 @@ int CvUnit::getGivePoliciesCulture()
 
 		// Culture boost based on previous turns
 		int iPreviousTurnsToCount = getUnitInfo().GetBaseCultureTurnsToCount();
+		
+		int iTraitReligionUnitExtraTurns = kPlayer.GetPlayerTraits()->GetOwnedReligionUnitCultureExtraTurns();
+		if(iTraitReligionUnitExtraTurns != 0)
+		{
+			ReligionTypes eReligion = GetReligionData()->GetReligion();
+			if (eReligion != NO_RELIGION && kPlayer.HasReligion(eReligion)) iPreviousTurnsToCount += iTraitReligionUnitExtraTurns;
+		}
 		if (iPreviousTurnsToCount != 0)
 		{
 			// Calculate boost
@@ -20283,6 +20293,10 @@ void CvUnit::setXY(int iX, int iY, bool bGroup, bool bUpdate, bool bShow, bool b
 					{
 						player.changeExtraUnitCost(getUnitInfo().GetExtraMaintenanceCost());
 					}
+					if(player.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY) > 0)
+					{
+						pOldPlot->getPlotCity()->ChangeNoOccupiedUnhappinessCount(-1);
+					}	
 				}
 			}
 
@@ -20365,6 +20379,10 @@ void CvUnit::setXY(int iX, int iY, bool bGroup, bool bUpdate, bool bShow, bool b
 				if (player.IsGarrisonFreeMaintenance())
 				{
 					player.changeExtraUnitCost(-getUnitInfo().GetExtraMaintenanceCost());
+				}
+				if(player.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY) > 0)
+				{
+					pNewPlot->getPlotCity()->ChangeNoOccupiedUnhappinessCount(1);
 				}
 			}
 		}
@@ -20887,9 +20905,15 @@ void CvUnit::setXY(int iX, int iY, bool bGroup, bool bUpdate, bool bShow, bool b
 	}
 
 	// Units moving into and out of cities change garrison happiness
-	if(kPlayer.GetHappinessPerGarrisonedUnit() != 0 && ((pNewPlot && pNewPlot->isCity()) || (pOldPlot && pOldPlot->isCity())))
+	if ((pOldCity || pNewCity) && GetBaseCombatStrength(true) > 0 && getDomainType() == DOMAIN_LAND)
 	{
-		GET_PLAYER(getOwner()).DoUpdateHappiness();
+		if(kPlayer.GetHappinessPerGarrisonedUnit() != 0 ||
+		  	(kPlayer.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY) > 0 && 
+		  	((pOldCity && pOldCity->IsOccupied() && pOldCity->GetNoOccupiedUnhappinessCount() == 0) || (pNewCity && pNewCity->IsOccupied() && pNewCity->GetNoOccupiedUnhappinessCount() == 1)))
+		)
+		{
+			GET_PLAYER(getOwner()).DoUpdateHappiness();
+		}
 	}
 
 	ICvEngineScriptSystem1* pkScriptSystem = gDLL->GetScriptSystem();
@@ -27134,6 +27158,7 @@ void CvUnit::read(FDataStream& kStream)
 #ifdef MOD_BATTLE_CAPTURE_NEW_RULE
 	kStream >> m_bIsNewCapture;
 #endif
+	kStream >> m_bIsCheat;
 
 	kStream >> m_iCombatStrengthChangeFromKilledUnits;
 	kStream >> m_iRangedCombatStrengthChangeFromKilledUnits;
@@ -27469,6 +27494,7 @@ void CvUnit::write(FDataStream& kStream) const
 #ifdef MOD_BATTLE_CAPTURE_NEW_RULE
 	kStream << m_bIsNewCapture;
 #endif
+	kStream << m_bIsCheat;
 
 	kStream << m_iCombatStrengthChangeFromKilledUnits;
 	kStream << m_iRangedCombatStrengthChangeFromKilledUnits;

@@ -105,8 +105,14 @@ alter table Policies add column CapitalTradeRouteGoldChange integer default 0;
 alter table Policies add column CapitalTradeRouteRangeChange integer default 0;
 alter table Policies add column RiggingElectionInfluenceModifier integer default 0;
 alter table Policies add column SpyLevelUpWhenRigging boolean default 0;
+alter table Policies add column NoOccupiedUnhappinessGarrisonedCity boolean default 0;
 
 create table PolicyBranch_CivilizationLocked (
     PolicyBranchType TEXT REFERENCES PolicyBranchTypes(Type),
     CivilizationType TEXT REFERENCES Civilizations(Type)
+);
+create table Policy_CityLoveKingDayYieldMod (
+	PolicyType text not null references Policies(Type),
+	YieldType integer not null references Yields(Type),
+	Yield integer not null default 0
 );
