@@ -1038,6 +1038,9 @@ public:
 	void ChangeUnitTypePrmoteHealGlobal(UnitTypes eUnit, int iChange);
 	int GetUnitTypePrmoteHealGlobal(UnitTypes) const;
 #endif
+	void ChangeEraUnitClassMaxInstances(UnitClassTypes eUnitClass, int iChange);
+	int GetEraUnitClassMaxInstances(UnitClassTypes eUnitClass) const;
+
 	int getPolicyModifiers(PolicyModifierType eIndex) const;
 	void changePolicyModifiers(PolicyModifierType eIndex, int iChange);
 
@@ -1711,6 +1714,9 @@ public:
 	int GetExtraUnitPlayerInstances() const;
 	void SetExtraUnitPlayerInstances(int iValue);
 	void ChangeExtraUnitPlayerInstances(int iChange);
+
+	int GetConquestCasualtiesModifier() const;
+	void ChangeConquestCasualtiesModifier(int iChange);
 
 	int GetWaterTileDamageGlobal() const;
 	void SetWaterTileDamageGlobal(int iValue);
@@ -2609,6 +2615,7 @@ protected:
 	int m_iResearchTotalCostModifierGoldenAge;
 	int m_iLiberatedInfluence;
 	int m_iExtraUnitPlayerInstances;
+	int m_iConquestCasualtiesModifier;
 	int m_iWaterTileDamageGlobal;
 	int m_iWaterTileMovementReduceGlobal;
 	int m_iWaterTileTurnDamageGlobal;
@@ -2715,8 +2722,10 @@ protected:
 	std::vector<int> m_aiDomainEnemyCombatModifierGlobal;
 
 	std::map<int, int> m_piDomainFreeExperience;
-	std::map<int, int> m_piUnitTypePrmoteHealGlobal;
+	std::tr1::unordered_map<int, int> m_piUnitTypePrmoteHealGlobal;
 #endif
+	std::tr1::unordered_map<int, int> m_mapEraUnitClassMaxInstances;
+
 	FAutoVariable<std::vector<int>, CvPlayer> m_aiPolicyModifiers;
 
 	std::vector<int> m_aiYieldFromNonSpecialistCitizens;

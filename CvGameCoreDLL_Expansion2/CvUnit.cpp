@@ -701,6 +701,11 @@ void CvUnit::initWithNameOffset(int iID, UnitTypes eUnit, int iNameOffset, UnitA
 #endif
 				
 				setName(strName);
+				PromotionTypes eFreePromotion = (PromotionTypes)getUnitInfo().GetUnitNameFreePromotion(iIndex);
+				if (eFreePromotion != NO_PROMOTION)
+				{
+					setHasPromotion(eFreePromotion, true);
+				}
 				SetGreatWork(getUnitInfo().GetGreatWorks(iIndex));
 				GC.getGame().addGreatPersonBornName(strName);
 #if defined(MOD_GLOBAL_NO_LOST_GREATWORKS)
@@ -20323,15 +20328,18 @@ void CvUnit::setXY(int iX, int iY, bool bGroup, bool bUpdate, bool bShow, bool b
 				if (GetBaseCombatStrength(true/*bIgnoreEmbarked*/) > 0 && getDomainType() == DOMAIN_LAND)
 				{
 					CvPlayer& player = GET_PLAYER(getOwner());
-					pOldPlot->getPlotCity()->ChangeJONSCulturePerTurnFromPolicies(-(player.GetPlayerPolicies()->GetNumericModifier(POLICYMOD_CULTURE_FROM_GARRISON)));
 					if (player.IsGarrisonFreeMaintenance())
 					{
 						player.changeExtraUnitCost(getUnitInfo().GetExtraMaintenanceCost());
 					}
-					if(player.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY) > 0)
+					if (pOldPlot->getPlotCity()->getOwner() == getOwner())
 					{
-						pOldPlot->getPlotCity()->ChangeNoOccupiedUnhappinessCount(-1);
-					}	
+						int iCulture = player.GetPlayerPolicies()->GetNumericModifier(POLICYMOD_CULTURE_FROM_GARRISON);
+						if (iCulture != 0) pOldPlot->getPlotCity()->ChangeJONSCulturePerTurnFromPolicies(-iCulture);
+
+						int iNoOccupiedUnhappiness = player.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY);
+						if (iNoOccupiedUnhappiness > 0) pOldPlot->getPlotCity()->ChangeNoOccupiedUnhappinessCount(-iNoOccupiedUnhappiness);
+					}
 				}
 			}
 
@@ -20410,14 +20418,17 @@ void CvUnit::setXY(int iX, int iY, bool bGroup, bool bUpdate, bool bShow, bool b
 			if (GetBaseCombatStrength(true/*bIgnoreEmbarked*/) > 0 && getDomainType() == DOMAIN_LAND)
 			{
 				CvPlayer& player = GET_PLAYER(getOwner());
-				pNewPlot->getPlotCity()->ChangeJONSCulturePerTurnFromPolicies((player.GetPlayerPolicies()->GetNumericModifier(POLICYMOD_CULTURE_FROM_GARRISON)));
 				if (player.IsGarrisonFreeMaintenance())
 				{
 					player.changeExtraUnitCost(-getUnitInfo().GetExtraMaintenanceCost());
 				}
-				if(player.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY) > 0)
+				if (pNewPlot->getPlotCity()->getOwner() == getOwner())
 				{
-					pNewPlot->getPlotCity()->ChangeNoOccupiedUnhappinessCount(1);
+					int iCulture = player.GetPlayerPolicies()->GetNumericModifier(POLICYMOD_CULTURE_FROM_GARRISON);
+					if (iCulture != 0) pNewPlot->getPlotCity()->ChangeJONSCulturePerTurnFromPolicies(iCulture);
+
+					int iNoOccupiedUnhappiness = player.getPolicyModifiers(POLICYMOD_NO_OCCUPIED_UNHAPPINESS_GARRISONED_CITY);
+					if (iNoOccupiedUnhappiness > 0) pNewPlot->getPlotCity()->ChangeNoOccupiedUnhappinessCount(iNoOccupiedUnhappiness);
 				}
 			}
 		}
@@ -25977,31 +25988,6 @@ bool CvUnit::isPromotionValid(PromotionTypes ePromotion) const
 	if(!IsHoveringUnit() && promotionInfo->IsEmbarkedDeepWater())
 		return false;
 #endif
-
-
-	// Mutually Exclusive promotion
-	if (promotionInfo->GetMutuallyExclusiveGroup() != -1)
-	{
-		int iI;
-		int iNumPromotionInfos = GC.getNumPromotionInfos();
-		for (iI = 0; iI < iNumPromotionInfos; iI++)
-		{
-			const PromotionTypes ePromotionLoop = static_cast<PromotionTypes>(iI);
-
-			CvPromotionEntry* pkLoopPromotion = GC.getPromotionInfo(ePromotionLoop);
-			if (pkLoopPromotion)
-			{
-				// Promotion are in a Mutually Exclusive Group, so only one is allowed
-				if (pkLoopPromotion->GetMutuallyExclusiveGroup() == promotionInfo->GetMutuallyExclusiveGroup() && pkLoopPromotion != promotionInfo)
-				{
-					if (isHasPromotion(ePromotionLoop))
-					{
-						return false;
-					}
-				}
-			}
-		}
-	}
 
 	return true;
 }

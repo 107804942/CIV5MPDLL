@@ -941,6 +941,7 @@ bool CvBuildingEntry::CacheResults(Database::Results& kResults, CvDatabaseUtilit
 	// Building Locked By Buildings
 	// Read both table Building_LockedBuildingClasses and column MutuallyExclusiveGroup and expect to be more effective
 	{
+		m_piLockedByBuildings.clear();
 		std::string strKey("Building_LockedBuildingClasses");
 		Database::Results* pResults = kUtility.GetResults(strKey);
 		const char* szBuildingClass = kResults.GetText("BuildingClass");
@@ -951,19 +952,22 @@ bool CvBuildingEntry::CacheResults(Database::Results& kResults, CvDatabaseUtilit
 
 		pResults->Bind(1, szBuildingClass);
 		while(pResults->Step()) m_piLockedByBuildings.push_back(pResults->GetInt(0));
+		pResults->Reset();
 	}
+	int iMutuallyExclusiveGroup = kResults.GetInt("MutuallyExclusiveGroup");
+	if (iMutuallyExclusiveGroup != -1)
 	{
 		std::string strKey("Buildings.MutuallyExclusiveGroup");
 		Database::Results* pResults = kUtility.GetResults(strKey);
-		int iGroup = kResults.GetInt("MutuallyExclusiveGroup");
 		if(pResults == NULL)
 		{
 			pResults = kUtility.PrepareResults(strKey, "select ID from Buildings where MutuallyExclusiveGroup != -1 and MutuallyExclusiveGroup = ? and Type != ?");
 		}
 
-		pResults->Bind(1, iGroup);
+		pResults->Bind(1, iMutuallyExclusiveGroup);
 		pResults->Bind(2, szBuildingType);
 		while(pResults->Step()) m_piLockedByBuildings.push_back(pResults->GetInt(0));
+		pResults->Reset();
 	}
 #if defined(MOD_GLOBAL_BUILDING_INSTANT_YIELD)
 	kUtility.SetYields(m_piInstantYield, "Building_InstantYield", "BuildingType", szBuildingType);
@@ -1153,6 +1157,27 @@ bool CvBuildingEntry::CacheResults(Database::Results& kResults, CvDatabaseUtilit
 		std::map<int, int>(m_piUnitTypePrmoteHealGlobal).swap(m_piUnitTypePrmoteHealGlobal);
 	}
 #endif
+	{
+		std::string strKey("Building_UnitClassMaxInstances");
+		Database::Results* pResults = kUtility.GetResults(strKey);
+		if (pResults == NULL)
+		{
+			pResults = kUtility.PrepareResults(strKey, "select UnitClasses.ID as UnitClassID, ExtraMax from Building_UnitClassMaxInstances inner join UnitClasses on UnitClasses.Type = UnitClassType where BuildingType = ?");
+		}
+		pResults->Bind(1, szBuildingType);
+
+		while (pResults->Step())
+		{
+			int iUnitClass = pResults->GetInt(0);
+			int iExtraMax = pResults->GetInt(1);
+
+			m_mapUnitClassMaxInstances[iUnitClass] += iExtraMax;
+		}
+		pResults->Reset();
+
+		//Trim extra memory off container since this is mostly read-only.
+		std::map<int, int>(m_mapUnitClassMaxInstances).swap(m_mapUnitClassMaxInstances);
+	}
 
 #if defined(MOD_ROG_CORE)
 	//SpecialistYieldChangesLocal
@@ -3745,19 +3770,16 @@ int CvBuildingEntry::GetDomainFreeExperienceGlobal(int i) const
 	return 0;
 }
 
-int CvBuildingEntry::GetUnitTypePrmoteHealGlobal(int i) const
+const std::map<int, int>& CvBuildingEntry::GetUnitTypePrmoteHealGlobal() const
 {
-	CvAssertMsg(i < GC.getNumUnitInfos(), "Index out of bounds");
-	CvAssertMsg(i > -1, "Index out of bounds");
-
-	std::map<int, int>::const_iterator it = m_piUnitTypePrmoteHealGlobal.find(i);
-	if (it != m_piUnitTypePrmoteHealGlobal.end()) // find returns the iterator to map::end if the key i is not present in the map
-	{
-		return it->second;
-	}
-	return 0;
+	return m_piUnitTypePrmoteHealGlobal;
 }
 #endif
+
+const std::map<int, int>&  CvBuildingEntry::GetEraUnitClassMaxInstances() const
+{
+	return m_mapUnitClassMaxInstances;
+}
 
 #if defined(MOD_TROOPS_AND_CROPS_FOR_SP)
 int CvBuildingEntry::GetDomainTroops(int i) const

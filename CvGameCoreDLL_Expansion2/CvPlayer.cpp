@@ -391,6 +391,7 @@ CvPlayer::CvPlayer() :
 	, m_iResearchTotalCostModifierGoldenAge(0)
 	, m_iLiberatedInfluence(0)
 	, m_iExtraUnitPlayerInstances(0)
+	, m_iConquestCasualtiesModifier(0)
 	, m_iWaterTileDamageGlobal(0)
 	, m_iWaterTileMovementReduceGlobal(0)
 	, m_iWaterTileTurnDamageGlobal(0)
@@ -759,6 +760,7 @@ void CvPlayer::init(PlayerTypes eID)
 		changeWonderProductionModifier(GetPlayerTraits()->GetWonderProductionModifier());
 		ChangeRouteGoldMaintenanceMod(GetPlayerTraits()->GetImprovementMaintenanceModifier());
 		ChangeExtraUnitPlayerInstances(GetPlayerTraits()->GetExtraUnitPlayerInstances());
+		ChangeConquestCasualtiesModifier(GetPlayerTraits()->GetConquestCasualtiesModifier());
 		for(iJ = 0; iJ < NUM_YIELD_TYPES; iJ++)
 		{
 			ChangeCityYieldChangeTimes100((YieldTypes)iJ, 100 * GetPlayerTraits()->GetFreeCityYield((YieldTypes)iJ));
@@ -986,7 +988,7 @@ void CvPlayer::uninit()
 	m_piDomainFreeExperience.clear();
 	m_piUnitTypePrmoteHealGlobal.clear();
 #endif
-
+	m_mapEraUnitClassMaxInstances.clear();
 
 #if defined(MOD_RELIGION_CONVERSION_MODIFIERS)
 	m_iConversionModifier = 0;
@@ -1182,6 +1184,7 @@ void CvPlayer::uninit()
 	m_iResearchTotalCostModifierGoldenAge = 0;
 	m_iLiberatedInfluence = 0;
 	m_iExtraUnitPlayerInstances = 0;
+	m_iConquestCasualtiesModifier = 0;
 	m_iWaterTileDamageGlobal = 0;
 	m_iWaterTileMovementReduceGlobal = 0;
 	m_iWaterTileTurnDamageGlobal = 0;
@@ -1300,6 +1303,8 @@ void CvPlayer::uninit()
 	m_bAlliesGreatPersonBiasApplied = false;
 	m_lastGameTurnInitialAIProcessed = -1;
 
+	m_iGlobalGrowthFoodNeededModifier = 0;
+
 	m_sUUFromExtra.clear();
 	m_sUBFromExtra.clear();
 	m_sUIFromExtra.clear();
@@ -1346,6 +1351,7 @@ void CvPlayer::reset(PlayerTypes eID, bool bConstructorCall)
 	m_piDomainFreeExperience.clear();
 	m_piUnitTypePrmoteHealGlobal.clear();
 #endif
+	m_mapEraUnitClassMaxInstances.clear();
 
 #if defined(MOD_TROOPS_AND_CROPS_FOR_SP)
 	m_aiDomainTroopsTotal.clear();
@@ -2941,7 +2947,8 @@ CvCity* CvPlayer::acquireCity(CvCity* pOldCity, bool bConquest, bool bGift, bool
 	{
 		int iPercentPopulationRetained = /*50*/ GC.getCITY_CAPTURE_POPULATION_PERCENT();
 		int iInfluenceReduction = GetCulture()->GetInfluenceCityConquestReduction(eOldOwner);
-		iPercentPopulationRetained += (iInfluenceReduction * (100 - iPercentPopulationRetained) / 100);
+		int iPlayerReduction = GetConquestCasualtiesModifier();
+		iPercentPopulationRetained += (iInfluenceReduction + iPlayerReduction) * (100 - iPercentPopulationRetained) / 100;
 		iPercentPopulationRetained -= GC.getGame().GetGameLeagues()->GetGlobalWarCasualtiesChanges();
 		iPercentPopulationRetained = iPercentPopulationRetained > 100 ? 100 : iPercentPopulationRetained;
 		iPopulation = max(1, iPopulation * iPercentPopulationRetained / 100);
@@ -10073,22 +10080,26 @@ void CvPlayer::processBuilding(BuildingTypes eBuilding, int iChange, bool bFirst
 		}
 	}
 
-
 	// Loop through adding the available units
-	for (int iUnitLoop = 0; iUnitLoop < GC.getNumUnitInfos(); iUnitLoop++)
+	for (const auto& it : pBuildingInfo->GetUnitTypePrmoteHealGlobal())
 	{
-		UnitTypes eLoopUnit = (UnitTypes)iUnitLoop;
-		if (eLoopUnit != NO_UNIT)
+		UnitTypes eLoopUnit = (UnitTypes)it.first;
+		int iNewHeal = it.second;
+		if (eLoopUnit != NO_UNIT && iNewHeal > 0)
 		{
-			int iNewHeal = 0;
-			iNewHeal = pBuildingInfo->GetUnitTypePrmoteHealGlobal(eLoopUnit);
-			if (iNewHeal > 0)
-			{
-				ChangeUnitTypePrmoteHealGlobal(eLoopUnit, iNewHeal);
-			}
+			ChangeUnitTypePrmoteHealGlobal(eLoopUnit, iNewHeal);
 		}
 	}
 #endif
+	for (const auto& it : pBuildingInfo->GetEraUnitClassMaxInstances())
+	{
+		UnitClassTypes eUnitClass = (UnitClassTypes)it.first;
+		int iExtraMax = it.second;
+		if (eUnitClass != NO_UNITCLASS && iExtraMax != 0)
+		{
+			ChangeEraUnitClassMaxInstances(eUnitClass, iExtraMax);
+		}
+	}
 
 #if defined(MOD_ROG_CORE)
 	ChangeAllowPuppetPurchase(pBuildingInfo->IsAllowsPuppetPurchase() ? iChange : 0);
@@ -17833,7 +17844,7 @@ int CvPlayer::GetUnitTypePrmoteHealGlobal(UnitTypes eIndex) const
 	VALIDATE_OBJECT
 	CvAssertMsg(eIndex >= 0, "eIndex expected to be >= 0");
 	CvAssertMsg(eIndex < GC.getNumUnitInfos(), "eIndex expected to be < NUM_UNIT_TYPES");
-	std::map<int, int>::const_iterator it = m_piUnitTypePrmoteHealGlobal.find((int)eIndex);
+	auto it = m_piUnitTypePrmoteHealGlobal.find((int)eIndex);
 	if (it != m_piUnitTypePrmoteHealGlobal.end()) // find returns the iterator to map::end if the key i is not present in the map
 	{
 		return it->second;
@@ -17850,6 +17861,24 @@ void CvPlayer::ChangeUnitTypePrmoteHealGlobal(UnitTypes eIndex, int iChange)
 }
 #endif
 
+//	--------------------------------------------------------------------------------
+void CvPlayer::ChangeEraUnitClassMaxInstances(UnitClassTypes eUnitClass, int iChange)
+{
+	m_mapEraUnitClassMaxInstances[eUnitClass] += iChange;
+	if (m_mapEraUnitClassMaxInstances[eUnitClass] == 0)
+	{
+		m_mapEraUnitClassMaxInstances.erase(eUnitClass);
+	}
+}
+int CvPlayer::GetEraUnitClassMaxInstances(UnitClassTypes eUnitClass) const
+{
+	auto it = m_mapEraUnitClassMaxInstances.find(eUnitClass);
+	if (it != m_mapEraUnitClassMaxInstances.end())
+	{
+		return it->second;
+	}
+	return 0;
+}
 
 //	--------------------------------------------------------------------------------
 #if defined(MOD_PROMOTION_AURA_PROMOTION)
@@ -23587,7 +23616,8 @@ bool CvPlayer::isUnitClassMaxedOut(UnitClassTypes eIndex, int iExtra) const
 
 	CvAssertMsg(getUnitClassCount(eIndex) <= pkUnitClassInfo->getMaxPlayerInstances(), "getUnitClassCount is expected to be less than maximum bound of MaxPlayerInstances (invalid index)");
 
-	return ((getUnitClassCount(eIndex) + iExtra) >= pkUnitClassInfo->getMaxPlayerInstances() + GetExtraUnitPlayerInstances());
+	int iPlayerExtraMax = GetExtraUnitPlayerInstances() + GetEraUnitClassMaxInstances(eIndex);
+	return ((getUnitClassCount(eIndex) + iExtra) >= pkUnitClassInfo->getMaxPlayerInstances() + iPlayerExtraMax);
 }
 
 
@@ -26820,6 +26850,7 @@ void CvPlayer::processPolicies(PolicyTypes ePolicy, int iChange)
 	ChangeGoldenAgeMeterMod(pPolicy->GetGoldenAgeMeterMod() * iChange);
 	changeGoldenAgeModifier(pPolicy->GetGoldenAgeDurationMod() * iChange);
 	changeWorkerSpeedModifier(pPolicy->GetWorkerSpeedModifier() * iChange);
+	ChangeConquestCasualtiesModifier(pPolicy->GetConquestCasualtiesModifier() * iChange);
 
 	changePolicyModifiers(POLICYMOD_EXTRA_HAPPINESS, pPolicy->GetExtraHappiness() * iChange);
 	changePolicyModifiers(POLICYMOD_EXTRA_HAPPINESS_PER_CITY, pPolicy->GetExtraHappinessPerCity() * iChange);
@@ -27406,17 +27437,20 @@ void CvPlayer::processPolicies(PolicyTypes ePolicy, int iChange)
 				CvUnit* iUnit = pPlot->getUnitByIndex(iUnitLoop);
 				if(iUnit->GetBaseCombatStrength(true/*bIgnoreEmbarked*/) > 0 && iUnit->getDomainType() == DOMAIN_LAND)
 				{
-					if(bCulturePerGarrisonedUnit)
-					{
-						iCityCultureChange += (bCulturePerGarrisonedUnit * iChange);
-					}
 					if(bGarrisonFreeMaintenance)
 					{
 						changeExtraUnitCost(-iUnit->getUnitInfo().GetExtraMaintenanceCost() * iChange);
 					}
-					if(bNoOccupiedUnhappinessGarrisonedCity)
+					if (iUnit->getOwner() == pLoopCity->getOwner())
 					{
-						pLoopCity->ChangeNoOccupiedUnhappinessCount(iChange);
+						if(bCulturePerGarrisonedUnit)
+						{
+							iCityCultureChange += (bCulturePerGarrisonedUnit * iChange);
+						}
+						if(bNoOccupiedUnhappinessGarrisonedCity)
+						{
+							pLoopCity->ChangeNoOccupiedUnhappinessCount(iChange);
+						}
 					}
 				}
 			}
@@ -28373,6 +28407,7 @@ void CvPlayer::Read(FDataStream& kStream)
 	kStream >> m_iResearchTotalCostModifierGoldenAge;
 	kStream >> m_iLiberatedInfluence;
 	kStream >> m_iExtraUnitPlayerInstances;
+	MOD_SERIALIZE_READ(159, kStream, m_iConquestCasualtiesModifier, 0);
 	kStream >> m_iWaterTileDamageGlobal;
 	kStream >> m_iWaterTileMovementReduceGlobal;
 	kStream >> m_iWaterTileTurnDamageGlobal;
@@ -28473,6 +28508,7 @@ void CvPlayer::Read(FDataStream& kStream)
 	kStream >> m_piDomainFreeExperience;
 	kStream >> m_piUnitTypePrmoteHealGlobal;
 #endif
+	MOD_SERIALIZE_READ(158, kStream, m_mapEraUnitClassMaxInstances, {});
 
 	kStream >> m_ownedNaturalWonders;
 
@@ -29145,6 +29181,7 @@ void CvPlayer::Write(FDataStream& kStream) const
 	kStream << m_iResearchTotalCostModifierGoldenAge;
 	kStream << m_iLiberatedInfluence;
 	kStream << m_iExtraUnitPlayerInstances;
+	MOD_SERIALIZE_WRITE(kStream, m_iConquestCasualtiesModifier);
 	kStream << m_iWaterTileDamageGlobal;
 	kStream << m_iWaterTileMovementReduceGlobal;
 	kStream << m_iWaterTileTurnDamageGlobal;
@@ -29227,6 +29264,7 @@ void CvPlayer::Write(FDataStream& kStream) const
 	kStream << m_piDomainFreeExperience;
 	kStream << m_piUnitTypePrmoteHealGlobal;
 #endif
+	MOD_SERIALIZE_WRITE(kStream, m_mapEraUnitClassMaxInstances);
 
 	kStream << m_ownedNaturalWonders;
 
@@ -30254,6 +30292,18 @@ void CvPlayer::ChangeExtraUnitPlayerInstances(int iChange)
 	if (iChange != 0)
 	{
 		SetExtraUnitPlayerInstances(GetExtraUnitPlayerInstances() + iChange);
+	}
+}
+//	--------------------------------------------------------------------------------
+int CvPlayer::GetConquestCasualtiesModifier() const
+{
+	return m_iConquestCasualtiesModifier;
+}
+void CvPlayer::ChangeConquestCasualtiesModifier(int iChange)
+{
+	if (iChange != 0)
+	{
+		m_iConquestCasualtiesModifier += iChange;
 	}
 }
 
