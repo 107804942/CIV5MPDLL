@@ -544,6 +544,7 @@ public:
 	int GetUnhappinessFromCityForUI(CvCity* pCity) const;
 
 	int GetUnhappinessFromCityCount(CvCity* pAssumeCityAnnexed = NULL, CvCity* pAssumeCityPuppeted = NULL) const;
+	int GetUnhappinessFromCorruption(CvCity* pAssumeCityAnnexed = NULL, CvCity* pAssumeCityPuppeted = NULL) const;
 	int GetUnhappinessFromCapturedCityCount(CvCity* pAssumeCityAnnexed = NULL, CvCity* pAssumeCityPuppeted = NULL) const;
 	int GetUnhappinessFromCityPopulation(CvCity* pAssumeCityAnnexed = NULL, CvCity* pAssumeCityPuppeted = NULL) const;
 	int GetUnhappinessFromCitySpecialists(CvCity* pAssumeCityAnnexed, CvCity* pAssumeCityPuppeted) const;
@@ -561,6 +562,8 @@ public:
 
 	int GetCityCountUnhappinessMod() const;
 	void ChangeCityCountUnhappinessMod(int iChange);
+	int GetCorruptionUnhappinessModifier() const;
+	void ChangeCorruptionUnhappinessModifier(int iChange);
 
 	int GetOccupiedPopulationUnhappinessMod() const;
 	void ChangeOccupiedPopulationUnhappinessMod(int iChange);
@@ -781,6 +784,24 @@ public:
 	void SetGreatScientistBeakerPolicyMod(int iValue);
 	void ChangeGreatScientistBeakerPolicyMod(int iChange);
 
+	int GetInstantTourismBombWhenFirstConquerMajorCapital() const;
+	void SetInstantTourismBombWhenFirstConquerMajorCapital(int iValue);
+	void ChangeInstantTourismBombWhenFirstConquerMajorCapital(int iChange);
+
+	int GetNaturalWonderFirstFinderPolicies() const;
+	void SetNaturalWonderFirstFinderPolicies(int iValue);
+	void ChangeNaturalWonderFirstFinderPolicies(int iChange);
+	int GetNaturalWonderFirstFinderTech() const;
+	void SetNaturalWonderFirstFinderTech(int iValue);
+	void ChangeNaturalWonderFirstFinderTech(int iChange);
+	int GetNaturalWonderSubsequentFinderPolicies() const;
+	void SetNaturalWonderSubsequentFinderPolicies(int iValue);
+	void ChangeNaturalWonderSubsequentFinderPolicies(int iChange);
+	int GetNaturalWonderSubsequentFinderTech() const;
+	void SetNaturalWonderSubsequentFinderTech(int iValue);
+	void ChangeNaturalWonderSubsequentFinderTech(int iChange);
+
+
 	int GetGreatScientistBeakerMod() const;
 	void SetGreatScientistBeakerMod(int iValue);
 	void ChangeGreatScientistBeakerMod(int iChange);
@@ -796,6 +817,10 @@ public:
 	bool CanNoResistance() const;
 	int GetNoResistance() const;
 	void ChangeNoResistance(int iValue);
+	
+	bool CanTechBoostFromCityWonderBuildings() const;
+	int GetTechBoostFromCityWonderBuildings() const;
+	void ChangeTechBoostFromCityWonderBuildings(int iValue);
 
 	bool CanUpgradeAllTerritory() const;
 	int GetUpgradeAllTerritory() const;
@@ -1032,6 +1057,8 @@ public:
 	int GetDomainFreeExperiencesPerTurnGlobal(DomainTypes eDomain) const;
 	void ChangeDomainEnemyCombatModifierGlobal(DomainTypes eDomain, int iChange);
 	int GetDomainEnemyCombatModifierGlobal(DomainTypes eDomain) const;
+	void ChangeDomainFriendsCombatModifierGlobal(DomainTypes eDomain, int iChange);
+	int GetDomainFriendsCombatModifierGlobal(DomainTypes eDomain) const;
 	void ChangeDomainFreeExperience(DomainTypes eDomain, int iChange);
 	int GetDomainFreeExperience(DomainTypes) const;
 
@@ -1360,6 +1387,7 @@ public:
 
 	int GetImprovementExtraYield(ImprovementTypes eImprovement, YieldTypes eYield) const;
 	void ChangeImprovementExtraYield(ImprovementTypes eImprovement, YieldTypes eYield, int iChange);
+	int GetAdjacentImprovementYieldChangeFromBuildingsGlobal(ImprovementTypes eImprovement, ImprovementTypes eOtherImprovement, YieldTypes eYield) const;
 
 	int GetYieldModifierFromSpecialistGlobal(SpecialistTypes eSpecialist, YieldTypes eYield) const;
 	void ChangeYieldModifierFromSpecialistGlobal(SpecialistTypes eSpecialist, YieldTypes eYield, int iChange);
@@ -1707,6 +1735,9 @@ public:
 	int GetResearchTotalCostModifierGoldenAge() const;
 	void ChangeResearchTotalCostModifierGoldenAge(int iChange);
 
+	int GetImmigrationRegressandModifier() const;
+	void ChangeImmigrationRegressandModifier(int iChange);
+
 	int GetLiberatedInfluence() const;
 	void SetLiberatedInfluence(int iValue);
 	void ChangeLiberatedInfluence(int iChange);
@@ -1890,6 +1921,10 @@ public:
 
 	int GetLastSliceMoved() const;
 	void SetLastSliceMoved(int iValue);
+
+	int GetNoProgressCount() const;
+	void SetNoProgressCount(int iValue);
+	void ChangeNoProgressCount(int iChange);
 
 	void SetEverConqueredBy(PlayerTypes ePlayer, bool bValue);
 	bool IsEverConqueredBy(PlayerTypes ePlayer);
@@ -2185,9 +2220,16 @@ public:
 
 	int GetCorruptionScoreModifierFromPolicy() const;
 	void ChangeCorruptionScoreModifierFromPolicy(int change);
+	int GetGoldenAgeCorruptionScoreReduction() const;
+	void ChangeGoldenAgeCorruptionScoreReduction(int change);
+	int GetLocalHappinessCorruptionScoreMod() const;
+	void ChangeLocalHappinessCorruptionScoreMod(int change);
 	int GetCorruptionLevelReduceByOneRC() const;
 	bool IsCorruptionLevelReduceByOne() const;
 	void ChangeCorruptionLevelReduceByOneRC(int change);
+
+	int GetCorruptionScoreGlobalChangeFromBuilding() const;
+	void ChangeCorruptionScoreGlobalChangeFromBuilding(int change);
 
 	int GetCorruptionPolicyCostModifier() const;
 	void ChangeCorruptionPolicyCostModifier(int change);
@@ -2390,6 +2432,7 @@ protected:
 	FAutoVariable<int, CvPlayer> m_iUnhappinessFromUnitsMod;
 	FAutoVariable<int, CvPlayer> m_iUnhappinessMod;
 	FAutoVariable<int, CvPlayer> m_iCityCountUnhappinessMod;
+	FAutoVariable<int, CvPlayer> m_iCorruptionUnhappinessModifier;
 	FAutoVariable<int, CvPlayer> m_iOccupiedPopulationUnhappinessMod;
 	FAutoVariable<int, CvPlayer> m_iCapitalUnhappinessMod;
 	FAutoVariable<int, CvPlayer> m_iCityRevoltCounter;
@@ -2455,6 +2498,7 @@ protected:
 	int m_iGreatAdmiralsThresholdModifier;
 	int m_iAlwaysWeLoveKindDayInGoldenAge;
 	int m_iNoResistance;
+	int m_iTechBoostFromCityWonderBuildings;
 	int m_iUpgradeAllTerritory;
 	int m_iNoTechForWonder;
 	int m_iNoTechForProject;
@@ -2479,6 +2523,11 @@ protected:
 	int m_iGreatScientistRateModifier;
 	int m_iGreatScientistBeakerModifier;
 	int m_iGreatScientistBeakerPolicyModifier;
+	int m_iInstantTourismBombWhenFirstConquerMajorCapital;
+	int m_iNaturalWonderFirstFinderPolicies;
+	int m_iNaturalWonderFirstFinderTech;
+	int m_iNaturalWonderSubsequentFinderPolicies;
+	int m_iNaturalWonderSubsequentFinderTech;
 	int m_iProductionBeakerMod;
 	int m_iGreatEngineerRateModifier;
 	int m_iGreatPersonExpendGold;
@@ -2613,6 +2662,7 @@ protected:
 	int m_iGlobalRangedStrikeModifier;
 	int m_iResearchTotalCostModifier;
 	int m_iResearchTotalCostModifierGoldenAge;
+	int m_iImmigrationRegressandModifier;
 	int m_iLiberatedInfluence;
 	int m_iExtraUnitPlayerInstances;
 	int m_iConquestCasualtiesModifier;
@@ -2664,6 +2714,7 @@ protected:
     int m_iMaxEffectiveCities;
 
 	int m_iLastSliceMoved;
+	int m_iNoProgressCount;  // Tracks consecutive AI slices where no unit moved (for stuck-unit detection)
 
 	FAutoVariable<uint, CvPlayer> m_uiStartTime;  // XXX save these?
 
@@ -2720,6 +2771,7 @@ protected:
 	std::vector<int> m_aiDomainFreeExperiencePerGreatWorkGlobal;
 	std::vector<int> m_aiDomainFreeExperiencesPerTurnGlobal;
 	std::vector<int> m_aiDomainEnemyCombatModifierGlobal;
+	std::vector<int> m_aiDomainFriendsCombatModifierGlobal;
 
 	std::map<int, int> m_piDomainFreeExperience;
 	std::tr1::unordered_map<int, int> m_piUnitTypePrmoteHealGlobal;
@@ -2988,8 +3040,12 @@ protected:
 
 #ifdef MOD_GLOBAL_CORRUPTION
 	int m_iCorruptionScoreModifierFromPolicy = 0;
+	int m_iGoldenAgeCorruptionScoreReduction = 0;
+	int m_iLocalHappinessCorruptionScoreMod = 0;
 	int m_iCorruptionLevelReduceByOneRC = 0;
 	int m_iCorruptionPolicyCostModifier = 0;
+	int m_iCorruptionScoreGlobalChangeFromBuilding = 0;
+	bool m_bUpdatingReligion = false; // recursion guard for UpdateReligion()
 
 	std::vector<int> m_paiCorruptionLevelPolicyCostModifier;
 #endif

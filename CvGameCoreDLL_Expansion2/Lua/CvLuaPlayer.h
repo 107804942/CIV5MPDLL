@@ -333,6 +333,7 @@ protected:
 	static int lGetUnhappinessFromCityForUI(lua_State* L);
 
 	static int lGetUnhappinessFromCityCount(lua_State* L);
+	static int lGetUnhappinessFromCorruption(lua_State* L);
 	static int lGetUnhappinessFromCapturedCityCount(lua_State* L);
 	static int lGetUnhappinessFromCityPopulation(lua_State* L);
 	static int lGetUnhappinessFromCitySpecialists(lua_State* L);
@@ -1031,6 +1032,8 @@ protected:
 	static int lAddTemporaryDominanceZone(lua_State* L);
 
 	static int lGetNaturalWonderYieldModifier(lua_State* L);
+	static int lGetNaturalWonderYieldModifierPerEra(lua_State* L);
+	static int lGetImmigrationRegressandModifier(lua_State* L);
 
 	static int lGetPolicyBuildingClassYieldModifier(lua_State* L);
 	static int lGetPolicyBuildingClassYieldChange(lua_State* L);
@@ -1241,6 +1244,8 @@ protected:
 #ifdef MOD_GLOBAL_CORRUPTION
 	LUAAPIEXTN(IsCorruptionLevelReduceByOne, bool);
 	LUAAPIEXTN(GetCorruptionScoreModifierFromPolicy, int);
+	LUAAPIEXTN(GetCorruptionScoreGlobalChangeFromBuilding, int);
+	
 #endif
 
 #if defined(MOD_TROOPS_AND_CROPS_FOR_SP)
@@ -1300,6 +1305,8 @@ protected:
 	LUAAPIEXTN(ChangeFreeBuildingCount, void, BuildingTypes, int);
 
 	LUAAPIEXTN(GetMilitaryPromiseTurnLeft, int, ePlayer);
+	LUAAPIEXTN(GetExpansionPromiseTurnLeft, int, ePlayer);
+	LUAAPIEXTN(GetBorderPromiseTurnLeft, int, ePlayer);
 };
 
 #endif //CVLUAPLAYER_H
