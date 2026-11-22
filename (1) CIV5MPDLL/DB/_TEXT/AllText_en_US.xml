@@ -2,6 +2,15 @@
 <GameData>
 	<!-- Espionage.xml -->
 	<Language_en_US>
+	<Row Tag="TXT_KEY_CANNOT_PURCHASE_NO_CULTURE">
+		<Text>Not enough [ICON_CULTURE] Culture!</Text>
+	</Row>
+	<Row Tag="TXT_KEY_CULTURE_PURCHASE">
+		<Text>Culture Purchase</Text>
+	</Row>
+	<Row Tag="TXT_KEY_CULTURE_PURCHASE_UNIT">
+		<Text>Buy with Culture</Text>
+	</Row>
 		<Row Tag="TXT_KEY_UNIT_PLAGUE_CHANCE">
 			<Text>[COLOR_CYAN]Status Effect Chance ({1_Name})[ENDCOLOR]</Text>
 		</Row>

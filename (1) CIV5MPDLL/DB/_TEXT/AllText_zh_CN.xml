@@ -2,7 +2,15 @@
 <GameData>
 	<!-- Espionage.xml -->
 	<Language_zh_CN>
-
+	    <Row Tag="TXT_KEY_CANNOT_PURCHASE_NO_CULTURE">
+			<Text>[ICON_CULTURE]文化不足！!</Text>
+		</Row>
+		<Row Tag="TXT_KEY_CULTURE_PURCHASE">
+			<Text>文化购买</Text>
+		</Row>
+		<Row Tag="TXT_KEY_CULTURE_PURCHASE_UNIT">
+			<Text>用文化购买当前生产的单位</Text>
+		</Row>
 		<Row Tag="TXT_KEY_UNIT_PLAGUE_CHANCE">
 			<Text>[COLOR_CYAN]受到({1_Name})状态影响的几率[ENDCOLOR]</Text>
 		</Row>
